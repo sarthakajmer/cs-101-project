@@ -1,0 +1,1531 @@
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+# include <iostream>
+# include <cstdlib>
+# include <string>
+# include <vector>
+# include <cmath>
+# include <algorithm>
+
+
+int W;
+
+MainWindow::MainWindow(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    QString input =  ui->textEdit->toPlainText();
+    QString key =  ui->lineEdit->text();
+
+    std::string sinput = input.toStdString();
+    std::string skey = key.toStdString();
+    std::string soutput;
+
+    if(ui->comboBox->currentIndex()==1)
+    {
+        conversion ob;
+        ob.text_binary(sinput);
+
+        ob.IP1();
+        ob.key_binary(skey);
+        ob.PC1();
+        ob.PC2();
+        ob.PC2_con();
+        ob.E();
+
+        ob.IP2();
+
+        ob.binary_6();
+        ob.print_EncryptedText(soutput);
+
+
+    }
+    else
+    {
+        W=1;
+        AesClass ob;
+        if(W==1) ob.text_to_node(sinput);
+            else	ob.cipher_to_node(sinput);
+            ob.key_to_node(skey);
+            ob.round_keys();
+            ob.mainRounds();
+            if(W==1)ob.binary_6();
+            if(W==1) ob.Encrypted(soutput);
+            else ob.Decrypted(soutput);
+
+    }
+
+    QString output = QString::fromStdString(soutput);
+
+    ui->textBrowser->setText(output);
+
+}
+
+
+void MainWindow::on_pushButton_2_clicked()
+{
+    QString input =  ui->textEdit->toPlainText();
+    QString key =  ui->lineEdit->text();
+
+    std::string sinput = input.toStdString();
+    std::string skey = key.toStdString();
+    std::string soutput;
+
+    if(ui->comboBox->currentIndex()==1)
+    {
+        conversion ob;
+        ob.encrypted_binary(sinput);
+        ob.IP1();
+        ob.key_binary(skey);
+        ob.PC1();
+        ob.PC2();
+        ob.PC2_con();
+        ob.swap_key();
+        ob.D();
+        ob.IP2();
+
+        ob.print_DecryptedText(soutput);
+
+
+    }
+    else
+    {
+        W=2;
+        AesClass ob;
+        if(W==1) ob.text_to_node(sinput);
+            else	ob.cipher_to_node(sinput);
+            ob.key_to_node(skey);
+            ob.round_keys();
+            ob.mainRounds();
+            if(W==1)ob.binary_6();
+            if(W==1) ob.Encrypted(soutput);
+            else ob.Decrypted(soutput);
+
+    }
+
+    QString output = QString::fromStdString(soutput);
+
+    ui->textBrowser->setText(output);
+
+}
+
+
+using namespace std;
+
+conversion::conversion()
+{
+    head=NULL;
+    temp=NULL;
+    cur=NULL;
+    key_head=NULL;
+}
+
+void conversion::text_binary(string input)
+{
+
+    for(int t=0;t<input.size();t+=8)
+    {
+        node* n = new node;
+        for(int j=0;j<8;j++)
+        {
+            for(int i=7;i>=0;--i)
+            {
+                int q=0;
+                if((input[j+t]>>i)%2==1) q=1;
+                n->data.push_back(q);
+            }
+        }
+
+        n->next=NULL;
+        if(head != NULL)
+        {
+              cur=head;
+              while(cur->next != NULL)
+                cur=cur->next;
+              cur->next=n;
+        }
+
+        else head = n;
+    }
+}
+
+void conversion::encrypted_binary(string input)
+{
+    for(int t=0;t<input.size();t+=11)
+    {
+        node* n = new node;
+        for(int j=0;j<11;j++)
+        {
+            for(int i=5;i>=0;--i)
+            {
+                int q=0;
+                if(((input[j+t]-32)>>i)%2==1) q=1;
+                n->data.push_back(q);
+            }
+        }
+
+        n->data.erase(n->data.begin()+64,n->data.end());
+
+        n->next=NULL;
+        if(head != NULL)
+        {
+            cur=head;
+            while(cur->next != NULL)
+                cur=cur->next;
+            cur->next=n;
+        }
+
+        else head = n;
+    }
+}
+
+
+void conversion::key_binary(string key)
+{
+    for(int j=0;j<7;j++)
+    {
+        for(int i=7;i>=0;--i)
+        {
+            int q=0;
+            if(j<key.size() &&(key[j]>>i)%2==1) q=1;
+            B_key.push_back(q);
+        }
+    }
+}
+
+void conversion::IP1()
+{
+    cur = head;
+    int per_1[64]={57,49,41,33,25,17,9,1,
+               59,51,43,35,27,19,11,3,
+               61,53,45,37,29,21,13,5,
+               63,55,47,39,31,23,15,7,
+               56,48,40,32,24,16,8,0,
+               58,50,42,34,26,18,10,2,
+               60,52,44,36,28,20,12,4,
+               62,54,46,38,30,22,14,6};
+    while(cur->data.size()>0)
+    {
+        vector <int> vec;
+        for(int i=0;i<64;i++)	vec.push_back(cur->data[per_1[i]]);
+
+        for(int i=0;i<64;i++)	cur->data[i]=vec[i];
+
+        if(cur->next==NULL) break;
+        else cur=cur->next;
+    }
+}
+
+void conversion::IP2()
+{
+    cur = head;
+
+    int per[64] = {39,7,47,15,55,23,63,31,
+               38,6,46,14,54,22,62,30,
+               37,5,45,13,53,21,61,29,
+               36,4,44,12,52,20,60,28,
+               35,3,43,11,51,19,59,27,
+               34,2,42,10,50,18,58,26,
+               33,1,41,9,49,17,57,25,
+               32,0,40,8,48,16,56,24};
+
+    while(cur->data.size()>0)
+    {
+        vector <int> vec;
+
+        for(int i=0;i<64;i++)	vec.push_back(cur->data[per[i]]);
+
+        for(int i=0;i<64;i++)	cur->data[i]=vec[i];
+
+        if(cur->next==NULL) break;
+        else cur=cur->next;
+    }
+}
+
+void conversion::PC1()							// PC1 is not working with PC2
+{												// both are working seperatelly
+    int table[56] ={57,49,41,33,25,17,9,
+            1,58,50,42,34,26,18,
+            10,2,59,51,43,35,27,
+            19,11,3,60,52,44,36,
+            63,55,47,39,31,23,15,
+            7,62,54,46,38,30,22,
+            14,6,61,53,45,37,29,
+            21,13,5,28,20,12,4};
+    vector <int> L;
+
+    for(int i=0;i<56;i++)	L.push_back(B_key[(table[i]-(table[i]/8))-1]);
+
+    for(int i=0;i<56;i++)	B_key[i]=L[i];
+}
+
+
+
+void conversion::PC2_con()
+{
+    key_node* a;
+    a=key_head;
+
+    vector <int> vec;
+    int per[48] =  {13,16,10,23,0,4,
+            2,27,14,5,20,9,
+            22,18,11,3,25,7,
+            15,6,26,19,12,1,
+            40,51,30,36,46,54,
+            29,39,50,44,32,47,
+            43,48,38,55,33,52,
+            45,41,49,35,28,31};
+
+    while(a->next!=NULL)
+    {
+
+        for(int y=0;y<48;y++)	vec.push_back(a->rkey[y]);
+
+        for(int i=0;i<48;i++)
+        {
+            a->rkey[i]=vec[i];
+            a->rkey.erase (a->rkey.begin()+48,a->rkey.end());
+        }
+
+        a=a->next;
+        vec.erase(vec.begin(),vec.end());
+    }
+
+    for(int y=0;y<48;y++)	vec.push_back(a->rkey[y]);
+
+    for(int i=0;i<48;i++)
+    {
+        a->rkey[i]=vec[i];
+        a->rkey.erase (a->rkey.begin()+48,a->rkey.end());
+    }
+}
+
+
+
+void conversion::PC2()
+{
+    vector <int> C;
+    vector <int> D;
+
+    for(int i=0;i<28;i++)
+    {
+        C.push_back(B_key[i]);
+        D.push_back(B_key[28+i]);
+    }
+
+    key_node* keytemp;
+    key_node* n;
+    for(int r=0;r<16;r++)
+    {
+        n=new key_node;
+        if(r==0 || r==1 || r==8 || r==15)
+        {
+            C.push_back(0);
+            C.erase(C.begin()+0);
+            D.push_back(0);
+            D.erase(D.begin()+0);
+        }
+
+        else if(r!=0 && r!=1 && r!=8 && r!=15)
+        {
+
+            C.push_back(0);
+            C.erase(C.begin()+0);
+            C.push_back(0);
+            C.erase(C.begin()+0);
+            D.push_back(0);
+            D.erase(D.begin()+0);
+            D.push_back(0);
+            D.erase(D.begin()+0);
+        }
+
+        n->rkey.reserve(C.size()+D.size());  // preallocate memory
+        n->rkey.insert(n->rkey.end(),C.begin(),C.end());
+        n->rkey.insert(n->rkey.end(),D.begin(),D.end());
+        n->next=NULL;
+
+        keytemp=key_head;
+        if(key_head!=NULL)
+        {
+            while(keytemp->next!=NULL)   keytemp=keytemp->next;
+            keytemp->next=n;
+        }
+        else	key_head=n;
+    }
+}
+
+void conversion::S(vector <int> &R)															//  Working good .................................
+{
+    vector <int> R1;
+    vector <int> R2;
+    vector <int> R3;
+    vector <int> R4;
+    vector <int> R5;
+    vector <int> R6;
+    vector <int> R7;
+    vector <int> R8;
+
+    for(int i=0;i<6;i++)
+    {
+        R1.push_back(R[i]);
+        R2.push_back(R[i+6]);
+        R3.push_back(R[i+12]);
+        R4.push_back(R[i+18]);
+        R5.push_back(R[i+24]);
+        R6.push_back(R[i+30]);
+        R7.push_back(R[i+36]);
+        R8.push_back(R[i+42]);
+    }
+
+    struct box
+    {
+        vector <int> bin;
+        int index;
+        box* next;
+    };
+    box* box_head=NULL;
+    box* box_temp=NULL;
+
+    box_head=new box;
+    box_head->index=0;
+
+    for(int y=0;y<4;y++)	box_head->bin.push_back(0);
+    box_temp=box_head;
+
+    box* n1=new box;
+    n1->index=1;
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=2;
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=3;
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=4;
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=5;
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=6;
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+        n1=new box;
+    n1->index=7;
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=8;
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=9;
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=10;
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=11;
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=12;
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=13;
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=14;
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(0);
+    box_temp->next=n1;
+    box_temp=box_temp->next;
+
+    n1=new box;
+    n1->index=15;
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    n1->bin.push_back(1);
+    box_temp->next=n1;
+
+    box_temp=box_head;
+    for(int t=0;t<16;t++)
+    {
+        if(R1[2]==box_temp->bin[0] && R1[3]==box_temp->bin[1] && R1[4]==box_temp->bin[2] && R1[5]==box_temp->bin[3])
+        break;
+        else
+        box_temp=box_temp->next;
+    }
+
+    int S1[4][16]={{14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7},
+            {0,15,7,4,14,2,13,1,10,6,12,11,9,5,3,8},
+            {4,1,14,8,13,6,2,11,15,12,9,7,3,10,5,0},
+            {15,12,8,2,4,9,1,7,5,11,3,14,10,0,6,13}};
+
+    int S2[4][16]={{15,1,8,14,6,11,3,4,9,7,2,13,12,0,5,10},
+                   {3,13,4,7,15,2,8,14,12,0,1,10,6,9,11,5},
+                   {0,14,7,11,10,4,13,1,5,8,12,6,9,3,2,15},
+                   {13,8,10,1,3,15,4,2,11,6,7,15,0,5,14,9}};
+
+    int S3[4][16]={{10,0,9,14,6,3,15,5,1,13,12,7,11,4,2,8},
+                   {13,7,0,9,3,4,6,10,2,8,5,14,12,11,15,1},
+                   {13,6,4,9,8,15,3,0,11,1,2,12,5,10,14,7},
+                   {1,10,13,0,6,9,8,7,4,15,14,3,11,5,2,12}};
+
+    int S4[4][16]={{7,13,14,3,0,6,9,10,1,2,8,5,11,12,4,15},
+            {13,8,11,5,6,15,0,3,4,7,2,12,1,10,14,9},
+            {10,6,9,0,12,11,7,13,15,1,3,14,5,2,8,4},
+            {3,15,0,6,10,1,13,8,9,4,5,11,12,7,2,14}};
+
+    int S5[4][16]={{2,12,4,1,7,10,11,6,8,5,3,15,13,0,14,9},
+                   {14,11,2,12,4,7,13,1,5,0,15,10,3,9,8,6},
+                   {4,2,1,11,10,13,7,8,15,9,12,5,6,3,0,14},
+                   {11,8,12,7,1,14,2,13,6,15,0,9,10,4,5,3}};
+
+    int S6[4][16]={{12,1,10,15,9,2,6,8,0,13,3,4,14,7,5,11},
+                   {10,15,4,2,7,12,9,5,6,1,13,14,0,11,3,8},
+                   {9,14,15,5,2,8,12,3,7,0,4,10,1,13,11,6},
+                   {4,3,2,12,9,5,15,10,11,14,1,7,6,0,8,13}};
+
+    int S7[4][16]={{4,11,2,14,15,0,8,13,3,12,9,7,5,10,6,1},
+                   {13,0,11,7,4,9,1,10,14,3,5,12,2,15,8,6},
+                   {1,4,11,13,12,3,7,14,10,15,6,8,0,5,9,2},
+                   {6,11,13,8,1,4,10,7,9,5,0,15,14,2,3,12}};
+
+    int S8[4][16]={{13,2,8,4,6,15,11,1,10,9,3,14,5,0,12,7},
+                   {1,15,13,8,10,3,7,4,12,5,6,11,0,14,9,2},
+                   {7,11,4,1,9,12,14,2,0,6,10,13,15,3,5,8},
+                   {2,1,14,7,4,10,8,13,15,12,9,0,3,5,6,11}};
+
+
+    int row[8];
+
+    if(R1[0]==0&&R1[1]==0) row[0]=0;
+    else if(R1[0]==0&&R1[1]==1) row[0]=1;
+    else if(R1[0]==1&&R1[1]==0) row[0]=2;
+    else if(R1[0]==1&&R1[1]==1) row[0]=3;
+
+        box* cur=box_head;
+    while(cur->index!=S1[row[0]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R1.size();i++)  R1[i]=cur->bin[i];
+    R1.erase(R1.begin()+4,R1.end());
+
+    if(R2[0]==0&&R2[1]==0) row[1]=0;
+    else if(R2[0]==0&&R2[1]==1) row[1]=1;
+    else if(R2[0]==1&&R2[1]==0) row[1]=2;
+    else if(R2[0]==1&&R2[1]==1) row[1]=3;
+
+    cur=box_head;
+    while(cur->index!=S2[row[1]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R2.size();i++)  R2[i]=cur->bin[i];
+    R2.erase(R2.begin()+4,R2.end());
+
+    if(R3[0]==0&&R3[1]==0) row[2]=0;
+    else if(R3[0]==0&&R3[1]==1) row[2]=1;
+    else if(R3[0]==1&&R3[1]==0) row[2]=2;
+    else if(R3[0]==1&&R3[1]==1) row[2]=3;
+
+    cur=box_head;
+    while(cur->index!=S3[row[2]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R3.size();i++)  R3[i]=cur->bin[i];
+    R3.erase(R3.begin()+4,R3.end());
+
+    if(R4[0]==0&&R4[1]==0) row[3]=0;
+    else if(R4[0]==0&&R4[1]==1) row[3]=1;
+    else if(R4[0]==1&&R4[1]==0) row[3]=2;
+    else if(R4[0]==1&&R4[1]==1) row[3]=3;
+
+    cur=box_head;
+    while(cur->index!=S4[row[3]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R4.size();i++)  R4[i]=cur->bin[i];
+    R4.erase(R4.begin()+4,R4.end());
+
+    if(R5[0]==0&&R5[1]==0) row[4]=0;
+    else if(R5[0]==0&&R5[1]==1) row[4]=1;
+    else if(R5[0]==1&&R5[1]==0) row[4]=2;
+    else if(R5[0]==1&&R5[1]==1) row[4]=3;
+
+    cur=box_head;
+    while(cur->index!=S5[row[4]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R5.size();i++)  R5[i]=cur->bin[i];
+    R5.erase(R5.begin()+4,R5.end());
+
+    if(R6[0]==0&&R6[1]==0) row[5]=0;
+    else if(R6[0]==0&&R6[1]==1) row[5]=1;
+    else if(R6[0]==1&&R6[1]==0) row[5]=2;
+    else if(R6[0]==1&&R6[1]==1) row[5]=3;
+
+    cur=box_head;
+    while(cur->index!=S6[row[5]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R6.size();i++)  R6[i]=cur->bin[i];
+    R6.erase(R6.begin()+4,R6.end());
+
+    if(R7[0]==0&&R7[1]==0) row[6]=0;
+    else if(R7[0]==0&&R7[1]==1) row[6]=1;
+    else if(R7[0]==1&&R7[1]==0) row[6]=2;
+    else if(R7[0]==1&&R7[1]==1) row[6]=3;
+
+    cur=box_head;
+    while(cur->index!=S7[row[0]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R7.size();i++)  R7[i]=cur->bin[i];
+    R7.erase(R7.begin()+4,R7.end());
+
+    if(R8[0]==0&&R8[1]==0) row[7]=0;
+    else if(R8[0]==0&&R8[1]==1) row[7]=1;
+    else if(R8[0]==1&&R8[1]==0) row[7]=2;
+    else if(R8[0]==1&&R8[1]==1) row[7]=3;
+
+    cur=box_head;
+    while(cur->index!=S8[row[7]][box_temp->index]) cur = cur->next;
+    for(int i=0;i<R8.size();i++)  R8[i]=cur->bin[i];
+    R8.erase(R8.begin()+4,R8.end());
+
+    for(int u=0;u<4;u++)
+    {
+        R[u]=R1[u];
+        R[u+4]=R2[u];
+        R[u+8]=R3[u];
+        R[u+12]=R4[u];
+        R[u+16]=R5[u];
+        R[u+20]=R6[u];
+        R[u+24]=R7[u];
+        R[u+28]=R8[u];
+    }
+
+    R.erase(R.begin()+32,R.end());
+
+}
+
+
+void conversion::E()
+{
+
+    key_node* tempcur;
+    temp = head;
+    vector <int> R;
+    vector <int> L;
+
+    int per[48]= {32,1,2,3,4,5,
+              4,5,6,7,8,9,
+              8,9,10,11,12,13,
+              12,13,14,15,16,17,
+              16,17,18,19,20,21,
+              20,21,22,23,24,25,
+              24,25,26,27,28,29,
+              28,29,30,31,32,1};
+
+    while(temp->next!=NULL)
+    {
+        tempcur = key_head;
+        for(int j=0;j<32;j++)
+        {
+            L.push_back(temp->data[j]);
+            R.push_back(temp->data[32+j]);
+        }
+
+        for(int i=0;i<16;i++)
+        {
+            vector <int> vec;
+            for(int y=0;y<32;y++) vec.push_back(L[y]);
+            for(int y=0;y<32;y++) L[y]=R[y];
+            for(int o=0;o<32;o++) R[o]=R[per[o]-1];
+            for(int y=32;y<48;y++) R.push_back(R[per[y]-1]);
+            for(int o=0;o<R.size();o++) R[o]=R[o]^tempcur->rkey[o];
+            S(R);
+            for(int y=0;y<32;y++) R[y]=vec[y]^R[y];
+            tempcur=tempcur->next;
+            for(int t=0;t<32;t++) temp->data[t]=L[t];
+            for(int t=0;t<32;t++) temp->data[t+32]=R[t];
+        }
+        temp=temp->next;
+        L.erase(L.begin(),L.end());
+        R.erase(R.begin(),R.end());
+    }
+
+    tempcur = key_head;
+    for(int j=0;j<32;j++)
+    {
+        L.push_back(temp->data[j]);
+        R.push_back(temp->data[32+j]);
+    }
+
+    for(int i=0;i<16;i++)
+    {
+        vector <int> vec;
+        for(int y=0;y<32;y++) vec.push_back(L[y]);
+        for(int y=0;y<32;y++) L[y]=R[y];
+        for(int o=0;o<32;o++) R[o]=R[per[o]-1];
+        for(int y=32;y<48;y++) R.push_back(R[per[y]-1]);
+        for(int o=0;o<R.size();o++) R[o]=R[o]^tempcur->rkey[o];
+        S(R);
+        for(int y=0;y<32;y++) R[y]=vec[y]^R[y];
+        tempcur=tempcur->next;
+        for(int t=0;t<32;t++) temp->data[t]=L[t];
+        for(int t=0;t<32;t++) temp->data[t+32]=R[t];
+    }
+    L.erase(L.begin(),L.end());
+    R.erase(R.begin(),R.end());
+}
+
+void conversion::swap_key()
+{
+    key_node* tempfor;
+    tempfor = key_head;
+    vector <int> vec1;
+    vector <int> vec2;
+
+    for(int i=0;i<8;i++)
+    {
+        for(int a=0;a<i;a++)	tempfor=tempfor->next;
+        for(int y=0;y<48;y++)	vec1.push_back(tempfor->rkey[y]);
+        tempfor=key_head;
+        for(int a=15;a>i;a--)	tempfor=tempfor->next;
+
+        for(int y=0;y<48;y++)	vec2.push_back(tempfor->rkey[y]);
+        tempfor=key_head;
+        for(int a=0;a<i;a++)	tempfor=tempfor->next;
+
+        for(int y=0;y<48;y++)	tempfor->rkey[y]=vec2[y];
+        tempfor=key_head;
+        for(int a=15;a>i;a--)	tempfor=tempfor->next;
+        for(int y=0;y<48;y++)	tempfor->rkey[y]=vec1[y];
+        tempfor=key_head;
+        vec1.erase(vec1.begin(),vec1.end());
+        vec2.erase(vec2.begin(),vec2.end());
+    }
+}
+
+
+void conversion::D()
+{
+    key_node* tempcur;
+    temp = head;
+    vector <int> R;
+    vector <int> L;
+
+    int per[48]    =   {32,1,2,3,4,5,
+                4,5,6,7,8,9,
+                8,9,10,11,12,13,
+                12,13,14,15,16,17,
+                16,17,18,19,20,21,
+                20,21,22,23,24,25,
+                24,25,26,27,28,29,
+                28,29,30,31,32,1};
+
+    while(temp->next!=NULL)
+    {
+        tempcur = key_head;
+        for(int j=0;j<32;j++)
+        {
+            L.push_back(temp->data[j]);
+            R.push_back(temp->data[32+j]);
+        }
+
+        for(int i=0;i<16;i++)
+        {
+            vector <int> vec;
+            for(int y=0;y<32;y++) vec.push_back(R[y]);
+            for(int y=0;y<32;y++) R[y]=L[y];
+            for(int o=0;o<32;o++) L[o]=L[per[o]-1];
+            for(int y=32;y<48;y++) L.push_back(L[per[y]-1]);
+            for(int o=0;o<L.size();o++) L[o]=L[o]^tempcur->rkey[o];
+            S(L);
+            for(int y=0;y<32;y++) L[y]=vec[y]^L[y];
+            tempcur=tempcur->next;
+
+            for(int t=0;t<32;t++) temp->data[t]=L[t];
+            for(int t=0;t<32;t++) temp->data[t+32]=R[t];
+        }
+        temp=temp->next;
+        L.erase(L.begin(),L.end());
+        R.erase(R.begin(),R.end());
+    }
+
+    tempcur = key_head;
+    for(int j=0;j<32;j++)
+    {
+        L.push_back(temp->data[j]);
+        R.push_back(temp->data[32+j]);
+    }
+
+    for(int i=0;i<16;i++)
+    {
+        vector <int> vec;
+        for(int y=0;y<32;y++) vec.push_back(R[y]);
+        for(int y=0;y<32;y++) R[y]=L[y];
+        for(int o=0;o<32;o++) L[o]=L[per[o]-1];
+        for(int y=32;y<48;y++) L.push_back(L[per[y]-1]);
+        for(int o=0;o<L.size();o++) L[o]=L[o]^tempcur->rkey[o];
+        S(L);
+        for(int y=0;y<32;y++) L[y]=vec[y]^L[y];
+        tempcur=tempcur->next;
+
+        for(int t=0;t<32;t++) temp->data[t]=L[t];
+        for(int t=0;t<32;t++) temp->data[t+32]=R[t];
+    }
+    L.erase(L.begin(),L.end());
+    R.erase(R.begin(),R.end());
+}
+
+void conversion::binary_6()
+{
+    cur=head;
+    while(cur->next!=NULL)
+    {
+        cur->data.push_back(0);
+        cur->data.push_back(0);
+        cur=cur->next;
+    }
+    cur->data.push_back(0);
+    cur->data.push_back(0);
+    cur=head;
+
+    while(cur->next!=NULL)
+    {
+        for(int i=0;i<cur->data.size();i+=6)
+        {
+            char output;
+            int tem=0;
+            for(int u=0;u<6;u++)	tem+=(pow(2,5-u)*cur->data[u+i]);
+            output=tem+32;
+            EncryptedText.push_back(output);
+        }
+        cur=cur->next;
+    }
+
+    for(int i=0;i<cur->data.size();i+=6)
+    {
+        char output;
+        int tem=0;
+        for(int u=0;u<6;u++)	tem+=(pow(2,5-u)*cur->data[u+i]);
+        output=tem+32;
+        EncryptedText.push_back(output);
+    }
+    cur=cur->next;
+
+}
+
+void conversion::print_EncryptedText(string &output)
+{
+     output=EncryptedText;
+}
+
+
+
+void conversion::print_DecryptedText(string &output)
+{
+    cur=head;
+
+    while(cur->next!=NULL)
+    {
+        for(int i=0;i<cur->data.size();i+=8)
+        {
+            char output;
+            int tem=0;
+            for(int u=0;u<8;u++)	tem+=(pow(2,7-u)*cur->data[u+i]);
+            output=tem;
+            EncryptedText.push_back(output);
+        }
+        cur=cur->next;
+    }
+
+
+    for(int i=0;i<cur->data.size();i+=8)
+    {
+        char output;
+        int tem=0;
+        for(int u=0;u<8;u++)	tem+=(pow(2,7-u)*cur->data[u+i]);
+        output=tem;
+        EncryptedText.push_back(output);
+    }
+
+    output=EncryptedText;
+
+}
+
+
+
+AesClass::AesClass()
+{
+    head=NULL;
+    temp=NULL;
+    keyhead=NULL;
+}
+
+
+void AesClass::text_to_node(string input)
+{
+    node* n;
+    for(int o=0;o<input.size();o+=16)
+    {
+        n=new node;
+        for(int i=0;i<16;i++)
+        {
+            int a=0;
+            if(input[i+o]!=a && (((i+o))<input.size())) a=(int)input[i+o];
+            n->data[i%4][i/4]=a;
+
+        }
+        n->next=NULL;
+        temp=head;
+
+        if(head!=NULL)
+        {
+            while(temp->next!=NULL)   temp=temp->next;
+            temp->next=n;
+        }
+        else head=n;
+    }
+}
+
+
+
+void AesClass::key_to_node(string input)
+{
+    unsigned int a;
+    key_node* n=new key_node;
+    for(int i=0;i<16;i++)
+    {
+        int a=0;
+
+        if(input[i]!=a && ((i)<input.size())) a=input[i];
+        n->rkey[i/4][i%4]=a;
+    }
+    n->next=NULL;
+    keyhead=n;
+}
+
+void AesClass::cipher_to_node(string input)
+{
+    node* n;
+    for(int o=0;o<input.size();o+=22)
+    {
+        vector <int> bin;
+        for(int t=0;t<22;t++)
+        {
+
+        for(int i=5;i>=0;--i)
+        {
+            int q=0;
+            if(((input[o+t]-32)>>i)%2==1) q=1;
+            bin.push_back(q);
+        }
+
+        }
+        bin.erase(bin.begin()+128,bin.end());
+        n=new node;
+
+        vector <int> fin;
+
+        for(int o=0;o<128;o+=8)
+        {
+            int a=0;
+            for(int q=0;q<8;q++)
+                a+=(pow(2,7-q)*bin[o+q]);
+            fin.push_back(a);
+        }
+
+
+        for(int u=0;u<16;u++)
+            n->data[u%4][u/4] = fin[u];
+        n->next=NULL;
+        temp=head;
+
+        if(head!=NULL)
+        {
+            while(temp->next!=NULL)   temp=temp->next;
+            temp->next=n;
+            temp->next->next=NULL;
+        }
+        else {head=n;}
+    }
+}
+
+void AesClass::round_keys()
+{
+    cout << "fine" << endl;
+    unsigned int Rcon[10][4]  =    {{0x01,0x00,0x00,0x00},
+                                        {0x02,0x00,0x00,0x00},
+                                        {0x04,0x00,0x00,0x00},
+                                        {0x08,0x00,0x00,0x00},
+                                        {0x10,0x00,0x00,0x00},
+                                        {0x20,0x00,0x00,0x00},
+                                        {0x40,0x00,0x00,0x00},
+                                        {0x80,0x00,0x00,0x00},
+                                        {0x1B,0x00,0x00,0x00},
+                                        {0x36,0x00,0x00,0x00}};
+
+    unsigned int S_box[16][16]  = {{0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76},
+                    {0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0},
+                    {0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15},
+                    {0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A, 0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75},
+                    {0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0, 0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84},
+                    {0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B, 0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF},
+                    {0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85, 0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8},
+                    {0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5, 0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2},
+                    {0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17, 0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73},
+                    {0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88, 0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB},
+                    {0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C, 0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79},
+                    {0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9, 0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08},
+                    {0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6, 0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A},
+                    {0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E},
+                    {0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF},
+                    {0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16}};
+
+    unsigned int inS_box[16][16]  = {{ 0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb}
+                    , {0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb}
+                    , {0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e}
+                    , {0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25}
+                    , {0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92}
+                    , {0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84}
+                    , {0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06}
+                    , {0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b}
+                    , {0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73}
+                    , {0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e}
+                    , {0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b}
+                    , {0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4}
+                    , {0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f}
+                    , {0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef}
+                    , {0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61}
+                    , {0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d}};
+
+
+    key_node* keytemp=keyhead;
+    key_node* n;
+    cout << "what now" << endl;
+
+    for(int round=0;round<10;round++)
+    {
+        n = new key_node;
+        n->next=NULL;
+        unsigned int colcur[4];
+        unsigned int coltemp[4];
+
+        for(int y=0;y<4;y++)
+        {
+            coltemp[y]=keytemp->rkey[y][0];
+            colcur[y]=keytemp->rkey[y][3];
+        }
+
+        unsigned int any=colcur[0];								// The first rotation
+        for(int p=0;p<3;p++)    colcur[p]=colcur[p+1];
+        colcur[3]=any;
+
+        for(int y=0;y<4;y++)
+        {
+            int r=(colcur[y]>>4)&0x0F;
+
+            int c=(colcur[y]>>0)&0x0F ;
+            colcur[y]=S_box[r][c];
+        }
+
+
+
+        for(int y=0;y<4;y++)	colcur[y]=(coltemp[y]^colcur[y])^Rcon[round][y];
+
+        for(int y=0;y<4;y++)  	n->rkey[y][0]=colcur[y];
+
+        for(int i=1;i<4;i++)
+        {
+            for(int y=0;y<4;y++)
+            {
+                coltemp[y]=keytemp->rkey[y][i];
+                colcur[y]=n->rkey[y][i-1];
+                colcur[y]=coltemp[y]^colcur[y];
+                n->rkey[y][i]=colcur[y];
+            }
+        }
+        keytemp->next=n;
+        keytemp=keytemp->next;
+    }
+}
+
+
+
+void AesClass::reverse_keys()
+{
+    key_node* keytemp;
+    keytemp = keyhead;
+
+    int vec1[4][4];
+    int vec2[4][4];
+
+    for(int q=0;q<5;q++)
+    {
+        keytemp = keyhead;
+        for(int o=0;o<q;o++)
+            keytemp=keytemp->next;
+
+        for(int i=0;i<4;i++)
+            for(int j=0;j<4;j++)
+                vec1[i][j] = keytemp->rkey[i][j];
+            keytemp=keyhead;
+
+        for(int o=0;o<10-q;o++)
+            keytemp=keytemp->next;
+
+        for(int i=0;i<4;i++)
+            for(int j=0;j<4;j++)
+                vec2[i][j] = keytemp->rkey[i][j];
+            keytemp=keyhead;
+
+        for(int o=0;o<q;o++)
+            keytemp=keytemp->next;
+
+        for(int i=0;i<4;i++)
+            for(int j=0;j<4;j++)
+                keytemp->rkey[i][j] = vec2[i][j];
+            keytemp=keyhead;
+
+        for(int o=0;o<10-q;o++)
+            keytemp=keytemp->next;
+
+        for(int i=0;i<4;i++)
+            for(int j=0;j<4;j++)
+                keytemp->rkey[i][j] = vec1[i][j];
+    }
+}
+
+
+
+void AesClass::mainRounds()
+{
+    key_node* keytemp=keyhead;
+    temp=head;
+
+    int  forMixing[4][4] = {{0x02,0x03,0x01,0x01},
+                {0x01,0x02,0x03,0x01},
+                {0x01,0x01,0x02,0x03},
+                {0x03,0x01,0x01,0x01}};
+
+    int  InforMixing[4][4]={{0x14,0x11,0x13,0x09},
+                {0x09,0x14,0x11,0x13},
+                {0x13,0x09,0x14,0x11},
+                {0x11,0x13,0x09,0x14}};
+
+    unsigned int S_box[16][16]  = {{0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76},
+                {0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0},
+                {0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15},
+                {0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A, 0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75},
+                {0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0, 0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84},
+                {0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B, 0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF},
+                {0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85, 0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8},
+                {0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5, 0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2},
+                {0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17, 0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73},
+                {0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88, 0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB},
+                {0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C, 0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79},
+                {0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9, 0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08},
+                {0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6, 0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A},
+                {0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E},
+                {0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF},
+                {0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16}};
+
+    unsigned int inS_box[16][16]  = {{ 0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb}
+                    , {0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb}
+                    , {0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e}
+                    , {0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25}
+                    , {0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92}
+                    , {0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84}
+                    , {0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06}
+                    , {0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b}
+                    , {0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73}
+                    , {0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e}
+                    , {0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b}
+                    , {0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4}
+                    , {0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f}
+                    , {0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef}
+                    , {0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61}
+                    , {0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d}};
+
+
+
+    int table_2[256] 	=      {0x00,0x02,0x04,0x06,0x08,0x0a,0x0c,0x0e,0x10,0x12,0x14,0x16,0x18,0x1a,0x1c,0x1e,
+                    0x20,0x22,0x24,0x26,0x28,0x2a,0x2c,0x2e,0x30,0x32,0x34,0x36,0x38,0x3a,0x3c,0x3e,
+                    0x40,0x42,0x44,0x46,0x48,0x4a,0x4c,0x4e,0x50,0x52,0x54,0x56,0x58,0x5a,0x5c,0x5e,
+                    0x60,0x62,0x64,0x66,0x68,0x6a,0x6c,0x6e,0x70,0x72,0x74,0x76,0x78,0x7a,0x7c,0x7e,
+                    0x80,0x82,0x84,0x86,0x88,0x8a,0x8c,0x8e,0x90,0x92,0x94,0x96,0x98,0x9a,0x9c,0x9e,
+                    0xa0,0xa2,0xa4,0xa6,0xa8,0xaa,0xac,0xae,0xb0,0xb2,0xb4,0xb6,0xb8,0xba,0xbc,0xbe,
+                    0xc0,0xc2,0xc4,0xc6,0xc8,0xca,0xcc,0xce,0xd0,0xd2,0xd4,0xd6,0xd8,0xda,0xdc,0xde,
+                    0xe0,0xe2,0xe4,0xe6,0xe8,0xea,0xec,0xee,0xf0,0xf2,0xf4,0xf6,0xf8,0xfa,0xfc,0xfe,
+                    0x1b,0x19,0x1f,0x1d,0x13,0x11,0x17,0x15,0x0b,0x09,0x0f,0x0d,0x03,0x01,0x07,0x05,
+                    0x3b,0x39,0x3f,0x3d,0x33,0x31,0x37,0x35,0x2b,0x29,0x2f,0x2d,0x23,0x21,0x27,0x25,
+                    0x5b,0x59,0x5f,0x5d,0x53,0x51,0x57,0x55,0x4b,0x49,0x4f,0x4d,0x43,0x41,0x47,0x45,
+                    0x7b,0x79,0x7f,0x7d,0x73,0x71,0x77,0x75,0x6b,0x69,0x6f,0x6d,0x63,0x61,0x67,0x65,
+                    0x9b,0x99,0x9f,0x9d,0x93,0x91,0x97,0x95,0x8b,0x89,0x8f,0x8d,0x83,0x81,0x87,0x85,
+                    0xbb,0xb9,0xbf,0xbd,0xb3,0xb1,0xb7,0xb5,0xab,0xa9,0xaf,0xad,0xa3,0xa1,0xa7,0xa5,
+                    0xdb,0xd9,0xdf,0xdd,0xd3,0xd1,0xd7,0xd5,0xcb,0xc9,0xcf,0xcd,0xc3,0xc1,0xc7,0xc5,
+                    0xfb,0xf9,0xff,0xfd,0xf3,0xf1,0xf7,0xf5,0xeb,0xe9,0xef,0xed,0xe3,0xe1,0xe7,0xe5};
+
+    int table_3[256]	 =    { 0x00,0x03,0x06,0x05,0x0c,0x0f,0x0a,0x09,0x18,0x1b,0x1e,0x1d,0x14,0x17,0x12,0x11,
+                    0x30,0x33,0x36,0x35,0x3c,0x3f,0x3a,0x39,0x28,0x2b,0x2e,0x2d,0x24,0x27,0x22,0x21,
+                    0x60,0x63,0x66,0x65,0x6c,0x6f,0x6a,0x69,0x78,0x7b,0x7e,0x7d,0x74,0x77,0x72,0x71,
+                    0x50,0x53,0x56,0x55,0x5c,0x5f,0x5a,0x59,0x48,0x4b,0x4e,0x4d,0x44,0x47,0x42,0x41,
+                    0xc0,0xc3,0xc6,0xc5,0xcc,0xcf,0xca,0xc9,0xd8,0xdb,0xde,0xdd,0xd4,0xd7,0xd2,0xd1,
+                    0xf0,0xf3,0xf6,0xf5,0xfc,0xff,0xfa,0xf9,0xe8,0xeb,0xee,0xed,0xe4,0xe7,0xe2,0xe1,
+                    0xa0,0xa3,0xa6,0xa5,0xac,0xaf,0xaa,0xa9,0xb8,0xbb,0xbe,0xbd,0xb4,0xb7,0xb2,0xb1,
+                    0x90,0x93,0x96,0x95,0x9c,0x9f,0x9a,0x99,0x88,0x8b,0x8e,0x8d,0x84,0x87,0x82,0x81,
+                    0x9b,0x98,0x9d,0x9e,0x97,0x94,0x91,0x92,0x83,0x80,0x85,0x86,0x8f,0x8c,0x89,0x8a,
+                    0xab,0xa8,0xad,0xae,0xa7,0xa4,0xa1,0xa2,0xb3,0xb0,0xb5,0xb6,0xbf,0xbc,0xb9,0xba,
+                    0xfb,0xf8,0xfd,0xfe,0xf7,0xf4,0xf1,0xf2,0xe3,0xe0,0xe5,0xe6,0xef,0xec,0xe9,0xea,
+                    0xcb,0xc8,0xcd,0xce,0xc7,0xc4,0xc1,0xc2,0xd3,0xd0,0xd5,0xd6,0xdf,0xdc,0xd9,0xda,
+                    0x5b,0x58,0x5d,0x5e,0x57,0x54,0x51,0x52,0x43,0x40,0x45,0x46,0x4f,0x4c,0x49,0x4a,
+                    0x6b,0x68,0x6d,0x6e,0x67,0x64,0x61,0x62,0x73,0x70,0x75,0x76,0x7f,0x7c,0x79,0x7a,
+                    0x3b,0x38,0x3d,0x3e,0x37,0x34,0x31,0x32,0x23,0x20,0x25,0x26,0x2f,0x2c,0x29,0x2a,
+                    0x0b,0x08,0x0d,0x0e,0x07,0x04,0x01,0x02,0x13,0x10,0x15,0x16,0x1f,0x1c,0x19,0x1a};
+
+    int table_9[256] 	=      {0x00,0x09,0x12,0x1b,0x24,0x2d,0x36,0x3f,0x48,0x41,0x5a,0x53,0x6c,0x65,0x7e,0x77,
+                    0x90,0x99,0x82,0x8b,0xb4,0xbd,0xa6,0xaf,0xd8,0xd1,0xca,0xc3,0xfc,0xf5,0xee,0xe7,
+                    0x3b,0x32,0x29,0x20,0x1f,0x16,0x0d,0x04,0x73,0x7a,0x61,0x68,0x57,0x5e,0x45,0x4c,
+                    0xab,0xa2,0xb9,0xb0,0x8f,0x86,0x9d,0x94,0xe3,0xea,0xf1,0xf8,0xc7,0xce,0xd5,0xdc,
+                    0x76,0x7f,0x64,0x6d,0x52,0x5b,0x40,0x49,0x3e,0x37,0x2c,0x25,0x1a,0x13,0x08,0x01,
+                    0xe6,0xef,0xf4,0xfd,0xc2,0xcb,0xd0,0xd9,0xae,0xa7,0xbc,0xb5,0x8a,0x83,0x98,0x91,
+                    0x4d,0x44,0x5f,0x56,0x69,0x60,0x7b,0x72,0x05,0x0c,0x17,0x1e,0x21,0x28,0x33,0x3a,
+                    0xdd,0xd4,0xcf,0xc6,0xf9,0xf0,0xeb,0xe2,0x95,0x9c,0x87,0x8e,0xb1,0xb8,0xa3,0xaa,
+                    0xec,0xe5,0xfe,0xf7,0xc8,0xc1,0xda,0xd3,0xa4,0xad,0xb6,0xbf,0x80,0x89,0x92,0x9b,
+                    0x7c,0x75,0x6e,0x67,0x58,0x51,0x4a,0x43,0x34,0x3d,0x26,0x2f,0x10,0x19,0x02,0x0b,
+                    0xd7,0xde,0xc5,0xcc,0xf3,0xfa,0xe1,0xe8,0x9f,0x96,0x8d,0x84,0xbb,0xb2,0xa9,0xa0,
+                    0x47,0x4e,0x55,0x5c,0x63,0x6a,0x71,0x78,0x0f,0x06,0x1d,0x14,0x2b,0x22,0x39,0x30,
+                    0x9a,0x93,0x88,0x81,0xbe,0xb7,0xac,0xa5,0xd2,0xdb,0xc0,0xc9,0xf6,0xff,0xe4,0xed,
+                    0x0a,0x03,0x18,0x11,0x2e,0x27,0x3c,0x35,0x42,0x4b,0x50,0x59,0x66,0x6f,0x74,0x7d,
+                    0xa1,0xa8,0xb3,0xba,0x85,0x8c,0x97,0x9e,0xe9,0xe0,0xfb,0xf2,0xcd,0xc4,0xdf,0xd6,
+                    0x31,0x38,0x23,0x2a,0x15,0x1c,0x07,0x0e,0x79,0x70,0x6b,0x62,0x5d,0x54,0x4f,0x46};
+
+    int table_11[256] 	=      {0x00,0x0b,0x16,0x1d,0x2c,0x27,0x3a,0x31,0x58,0x53,0x4e,0x45,0x74,0x7f,0x62,0x69,
+                    0xb0,0xbb,0xa6,0xad,0x9c,0x97,0x8a,0x81,0xe8,0xe3,0xfe,0xf5,0xc4,0xcf,0xd2,0xd9,
+                    0x7b,0x70,0x6d,0x66,0x57,0x5c,0x41,0x4a,0x23,0x28,0x35,0x3e,0x0f,0x04,0x19,0x12,
+                    0xcb,0xc0,0xdd,0xd6,0xe7,0xec,0xf1,0xfa,0x93,0x98,0x85,0x8e,0xbf,0xb4,0xa9,0xa2,
+                    0xf6,0xfd,0xe0,0xeb,0xda,0xd1,0xcc,0xc7,0xae,0xa5,0xb8,0xb3,0x82,0x89,0x94,0x9f,
+                    0x46,0x4d,0x50,0x5b,0x6a,0x61,0x7c,0x77,0x1e,0x15,0x08,0x03,0x32,0x39,0x24,0x2f,
+                    0x8d,0x86,0x9b,0x90,0xa1,0xaa,0xb7,0xbc,0xd5,0xde,0xc3,0xc8,0xf9,0xf2,0xef,0xe4,
+                    0x3d,0x36,0x2b,0x20,0x11,0x1a,0x07,0x0c,0x65,0x6e,0x73,0x78,0x49,0x42,0x5f,0x54,
+                    0xf7,0xfc,0xe1,0xea,0xdb,0xd0,0xcd,0xc6,0xaf,0xa4,0xb9,0xb2,0x83,0x88,0x95,0x9e,
+                    0x47,0x4c,0x51,0x5a,0x6b,0x60,0x7d,0x76,0x1f,0x14,0x09,0x02,0x33,0x38,0x25,0x2e,
+                    0x8c,0x87,0x9a,0x91,0xa0,0xab,0xb6,0xbd,0xd4,0xdf,0xc2,0xc9,0xf8,0xf3,0xee,0xe5,
+                    0x3c,0x37,0x2a,0x21,0x10,0x1b,0x06,0x0d,0x64,0x6f,0x72,0x79,0x48,0x43,0x5e,0x55,
+                    0x01,0x0a,0x17,0x1c,0x2d,0x26,0x3b,0x30,0x59,0x52,0x4f,0x44,0x75,0x7e,0x63,0x68,
+                    0xb1,0xba,0xa7,0xac,0x9d,0x96,0x8b,0x80,0xe9,0xe2,0xff,0xf4,0xc5,0xce,0xd3,0xd8,
+                    0x7a,0x71,0x6c,0x67,0x56,0x5d,0x40,0x4b,0x22,0x29,0x34,0x3f,0x0e,0x05,0x18,0x13,
+                    0xca,0xc1,0xdc,0xd7,0xe6,0xed,0xf0,0xfb,0x92,0x99,0x84,0x8f,0xbe,0xb5,0xa8,0xa3};
+
+    int table_13[256]	 =    { 0x00,0x0d,0x1a,0x17,0x34,0x39,0x2e,0x23,0x68,0x65,0x72,0x7f,0x5c,0x51,0x46,0x4b,
+                    0xd0,0xdd,0xca,0xc7,0xe4,0xe9,0xfe,0xf3,0xb8,0xb5,0xa2,0xaf,0x8c,0x81,0x96,0x9b,
+                    0xbb,0xb6,0xa1,0xac,0x8f,0x82,0x95,0x98,0xd3,0xde,0xc9,0xc4,0xe7,0xea,0xfd,0xf0,
+                    0x6b,0x66,0x71,0x7c,0x5f,0x52,0x45,0x48,0x03,0x0e,0x19,0x14,0x37,0x3a,0x2d,0x20,
+                    0x6d,0x60,0x77,0x7a,0x59,0x54,0x43,0x4e,0x05,0x08,0x1f,0x12,0x31,0x3c,0x2b,0x26,
+                    0xbd,0xb0,0xa7,0xaa,0x89,0x84,0x93,0x9e,0xd5,0xd8,0xcf,0xc2,0xe1,0xec,0xfb,0xf6,
+                    0xd6,0xdb,0xcc,0xc1,0xe2,0xef,0xf8,0xf5,0xbe,0xb3,0xa4,0xa9,0x8a,0x87,0x90,0x9d,
+                    0x06,0x0b,0x1c,0x11,0x32,0x3f,0x28,0x25,0x6e,0x63,0x74,0x79,0x5a,0x57,0x40,0x4d,
+                    0xda,0xd7,0xc0,0xcd,0xee,0xe3,0xf4,0xf9,0xb2,0xbf,0xa8,0xa5,0x86,0x8b,0x9c,0x91,
+                    0x0a,0x07,0x10,0x1d,0x3e,0x33,0x24,0x29,0x62,0x6f,0x78,0x75,0x56,0x5b,0x4c,0x41,
+                    0x61,0x6c,0x7b,0x76,0x55,0x58,0x4f,0x42,0x09,0x04,0x13,0x1e,0x3d,0x30,0x27,0x2a,
+                    0xb1,0xbc,0xab,0xa6,0x85,0x88,0x9f,0x92,0xd9,0xd4,0xc3,0xce,0xed,0xe0,0xf7,0xfa,
+                    0xb7,0xba,0xad,0xa0,0x83,0x8e,0x99,0x94,0xdf,0xd2,0xc5,0xc8,0xeb,0xe6,0xf1,0xfc,
+                    0x67,0x6a,0x7d,0x70,0x53,0x5e,0x49,0x44,0x0f,0x02,0x15,0x18,0x3b,0x36,0x21,0x2c,
+                    0x0c,0x01,0x16,0x1b,0x38,0x35,0x22,0x2f,0x64,0x69,0x7e,0x73,0x50,0x5d,0x4a,0x47,
+                    0xdc,0xd1,0xc6,0xcb,0xe8,0xe5,0xf2,0xff,0xb4,0xb9,0xae,0xa3,0x80,0x8d,0x9a,0x97};
+
+    int table_14[256] 	=      {0x00,0x0e,0x1c,0x12,0x38,0x36,0x24,0x2a,0x70,0x7e,0x6c,0x62,0x48,0x46,0x54,0x5a,
+                    0xe0,0xee,0xfc,0xf2,0xd8,0xd6,0xc4,0xca,0x90,0x9e,0x8c,0x82,0xa8,0xa6,0xb4,0xba,
+                    0xdb,0xd5,0xc7,0xc9,0xe3,0xed,0xff,0xf1,0xab,0xa5,0xb7,0xb9,0x93,0x9d,0x8f,0x81,
+                    0x3b,0x35,0x27,0x29,0x03,0x0d,0x1f,0x11,0x4b,0x45,0x57,0x59,0x73,0x7d,0x6f,0x61,
+                    0xad,0xa3,0xb1,0xbf,0x95,0x9b,0x89,0x87,0xdd,0xd3,0xc1,0xcf,0xe5,0xeb,0xf9,0xf7,
+                    0x4d,0x43,0x51,0x5f,0x75,0x7b,0x69,0x67,0x3d,0x33,0x21,0x2f,0x05,0x0b,0x19,0x17,
+                    0x76,0x78,0x6a,0x64,0x4e,0x40,0x52,0x5c,0x06,0x08,0x1a,0x14,0x3e,0x30,0x22,0x2c,
+                    0x96,0x98,0x8a,0x84,0xae,0xa0,0xb2,0xbc,0xe6,0xe8,0xfa,0xf4,0xde,0xd0,0xc2,0xcc,
+                    0x41,0x4f,0x5d,0x53,0x79,0x77,0x65,0x6b,0x31,0x3f,0x2d,0x23,0x09,0x07,0x15,0x1b,
+                    0xa1,0xaf,0xbd,0xb3,0x99,0x97,0x85,0x8b,0xd1,0xdf,0xcd,0xc3,0xe9,0xe7,0xf5,0xfb,
+                    0x9a,0x94,0x86,0x88,0xa2,0xac,0xbe,0xb0,0xea,0xe4,0xf6,0xf8,0xd2,0xdc,0xce,0xc0,
+                    0x7a,0x74,0x66,0x68,0x42,0x4c,0x5e,0x50,0x0a,0x04,0x16,0x18,0x32,0x3c,0x2e,0x20,
+                    0xec,0xe2,0xf0,0xfe,0xd4,0xda,0xc8,0xc6,0x9c,0x92,0x80,0x8e,0xa4,0xaa,0xb8,0xb6,
+                    0x0c,0x02,0x10,0x1e,0x34,0x3a,0x28,0x26,0x7c,0x72,0x60,0x6e,0x44,0x4a,0x58,0x56,
+                    0x37,0x39,0x2b,0x25,0x0f,0x01,0x13,0x1d,0x47,0x49,0x5b,0x55,0x7f,0x71,0x63,0x6d,
+                    0xd7,0xd9,0xcb,0xc5,0xef,0xe1,0xf3,0xfd,0xa7,0xa9,0xbb,0xb5,0x9f,0x91,0x83,0x8d};
+
+    if(W==1)
+    {
+        while(temp!=NULL)
+        {
+            keytemp=keyhead;
+            for(int round = 0; round < 11; round ++)
+            {
+                if(round > 0)
+                {
+                    // 1st step - Sbox substitution
+                    for(int j=0;j<4;j++)
+                    {
+                        for(int i=0;i<4;i++)
+                        {
+                            int r=(temp->data[i][j]>>4)&0x0F;
+
+                            int c=(temp->data[i][j]>>0)&0x0F ;
+
+                            temp->data[i][j]=S_box[r][c];
+                        }
+                    }
+
+                    // 2nd step - Shift Rows
+                    for(int i=1;i<4;i++)
+                    {
+                        for(int u=0;u<(i);u++)
+                        {
+                            for(int j=0;j<3;j++)
+                            {
+
+                                int t;
+                                t=temp->data[i][j];
+                                temp->data[i][j]=temp->data[i][j+1];
+                                temp->data[i][j+1]=t;
+                            }
+                        }
+                    }
+
+                    if(round<10)
+                    {
+                    // 3rd step - Mix columns
+                        // 3rd step - Mix columns
+                        int col[4];
+                        int coltemp[4];
+                        for(int j=0;j<4;j++)
+                        {
+                            for(int i=0;i<4;i++)	coltemp[i]=temp->data[i][j];
+
+                            col[0]=table_2[coltemp[0]]^table_3[coltemp[1]]^coltemp[2]^coltemp[3];
+                            col[1]=coltemp[0]^table_2[coltemp[1]]^table_3[coltemp[2]]^coltemp[3];
+                            col[2]=coltemp[0]^coltemp[1]^table_2[coltemp[2]]^table_3[coltemp[3]];
+                            col[3]=table_3[coltemp[0]]^coltemp[1]^coltemp[2]^table_2[coltemp[3]];
+
+                            for(int i=0;i<4;i++) 	temp->data[i][j]=col[i];
+                        }
+                    }
+                }
+
+
+                // 4th step - Add round keys
+                for(int j=0;j<4;j++)
+                {
+                    for(int i=0;i<4;i++)
+                    {
+                        temp->data[i][j]=temp->data[i][j]^keytemp->rkey[i][j];
+                    }
+                }
+                keytemp=keytemp->next;
+            }
+            temp=temp->next;
+        }
+    }
+
+
+
+
+    else
+    {
+        reverse_keys();
+        while(temp!=NULL)
+        {
+            keytemp=keyhead;
+            for(int round = 0; round < 11; round ++)
+            {
+                if(round > 0)
+                {
+
+                    // 2nd step - Inverse Shift Rows
+                    for(int i=1;i<4;i++)
+                    {
+                        for(int u=0;u<3*(i);u++)
+                        {
+                            for(int j=0;j<3;j++)
+                            {
+                                int t;
+                                t=temp->data[i][j];
+                                temp->data[i][j]=temp->data[i][j+1];
+                                temp->data[i][j+1]=t;
+                            }
+                        }
+                    }
+                    // 1st step - Sbox substitution
+                    for(int j=0;j<4;j++)
+                    {
+                        for(int i=0;i<4;i++)
+                        {
+                            int r=(temp->data[i][j]>>4)&0x0F;
+                            int c=(temp->data[i][j]>>0)&0x0F ;
+                            temp->data[i][j]=inS_box[r][c];
+                        }
+                    }
+                }
+                // 4th step - Add round keys
+                for(int j=0;j<4;j++)
+                    for(int i=0;i<4;i++)
+                        temp->data[i][j]=temp->data[i][j]^keytemp->rkey[i][j];
+
+                if(round<10 && round>0)
+                {
+                    // 3rd step - Mix columns
+                    int col[4];
+                    int coltemp[4];
+                    for(int j=0;j<4;j++)
+                    {
+                        for(int i=0;i<4;i++)	coltemp[i]=temp->data[i][j];
+
+                        col[0]=table_14[coltemp[0]]^table_11[coltemp[1]]^table_13[coltemp[2]]^table_9[coltemp[3]];
+                        col[1]=table_9[coltemp[0]]^table_14[coltemp[1]]^table_11[coltemp[2]]^table_13[coltemp[3]];
+                        col[2]=table_13[coltemp[0]]^table_9[coltemp[1]]^table_14[coltemp[2]]^table_11[coltemp[3]];
+                        col[3]=table_11[coltemp[0]]^table_13[coltemp[1]]^table_9[coltemp[2]]^table_14[coltemp[3]];
+                        for(int i=0;i<4;i++) 	temp->data[i][j]=col[i];
+                    }
+                }
+                keytemp=keytemp->next;
+                if(round==10)
+                {
+                    for(int i=0;i<4;i++)
+                        for(int j=0;j<4;j++)
+                        {
+                            char a = temp->data[j][i];
+                            Decryption.push_back(a);
+                        }
+                }
+            }
+            temp=temp->next;
+        }
+    }
+
+}
+
+void AesClass::binary_6()
+{
+    temp=head;
+    while(temp!=NULL)
+    {
+        vector <int> bin;
+        char rare[22];
+        for(int x=0;x<4;x++)
+        {
+            for(int y=0;y<4;y++)
+            {
+                for(int i=7;i>=0;--i)
+                {
+                    int q=0;
+                    if((temp->data[y][x]>>i)%2==1) q=1;
+                    bin.push_back(q);
+                }
+            }
+        }
+
+        for(int u=0;u<4;u++)
+            bin.push_back(0);
+
+        for(int i=0;i<132;i+=6)
+        {
+            int a=0;
+            for(int q=0;q<6;q++)
+                a+=(pow(2,5-q)*bin[q+i]);
+            rare[i/6]=a+32;
+        }
+
+        for(int u=0;u<22;u++)
+        {
+            Encryption = Encryption + rare[u];
+        }
+        temp=temp->next;
+    }
+}
+
+void AesClass::Decrypted(string &output)
+{
+    for(int i=0;i<Decryption.size();i++)
+        output.push_back(Decryption[i]);
+}
+
+void AesClass::Encrypted(string &output)
+{
+    for(int i=0;i<Encryption.size();i++)
+    output.push_back(Encryption[i]);
+}
